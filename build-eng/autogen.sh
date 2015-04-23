@@ -1,17 +1,11 @@
 #!/bin/bash
 
 # Record where I am
-BUILD_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
-PROJ_DIR=$(dirname $BUILD_DIR);
+PROJ_DIR=$(dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ));
+BUILD_DIR=$PROJ_DIR/build;
 
-# Move up one level
-cd $PROJ_DIR
-
-# Initialize (if needed) and update submodules
-git submodule update --init --recursive
-
-# Autoreconf to generate build scripts and such
-autoreconf --force --install --verbose "$PROJ_DIR"
-test -n "$NOCONFIGURE" || "$PROJ_DIR/configure" "$@"
-
+mkdir -p $BUILD_DIR
 cd $BUILD_DIR
+cmake $PROJ_DIR
+make
+cd $PROJ_DIR
