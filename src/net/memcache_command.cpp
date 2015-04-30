@@ -25,7 +25,8 @@ using namespace std;
 
 // Like getInstance. Used for creating commands from packets.
 MemcacheCommand MemcacheCommand::create(const Packet& pkt,
-                                        const bpf_u_int32 captureAddress)
+                                        const bpf_u_int32 captureAddress,
+                                        const memcache_command_t expectedCmdType)
 {
   static ssize_t ether_header_sz = sizeof(struct ether_header);
   static ssize_t ip_sz = sizeof(struct ip);
@@ -37,12 +38,12 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
   const Packet::Header* pkthdr = &pkt.getHeader();
   const Packet::Data* packet = pkt.getData();
 
-  bool possible_request = false;
   u_char *data;
   uint32_t dataLength = 0;
   uint32_t dataOffset;
 
   string sourceAddress = "";
+  string destinationAddress = "";
 
   // must be an IP packet
   // TODO add support for dumping localhost
@@ -59,15 +60,8 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
     return MemcacheCommand();
   }
   sourceAddress = ipv4addressToString(&(ipHeader->ip_src));
+  destinationAddress = ipv4addressToString(&(ipHeader->ip_dst));
 
-  // The packet was destined for our capture address, this is a request
-  // This bit of optimization lets us ignore a reasonably large percentage of
-  // traffic
-  if (ipHeader->ip_dst.s_addr == captureAddress) {
-    possible_request = true;
-  }
-  // FIXME will remove once we add back the direction parsing
-  (void)possible_request;
 
   tcpHeader = (struct tcphdr*)(packet + ether_header_sz + ip_sz);
   dataOffset = ether_header_sz + ip_sz + (tcpHeader->doff * 4);
@@ -77,14 +71,27 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
     dataLength = pkthdr->caplen;
   }
 
-  // TODO revert to detecting request/response and doing the right thing
-  return MemcacheCommand::makeResponse(data, dataLength, sourceAddress);
+  // The packet was destined for our capture address, this is a request
+  // This bit of optimization lets us ignore a reasonably large percentage of
+  // traffic
+  if (expectedCmdType == MC_REQUEST) {
+    if (ipHeader->ip_dst.s_addr == captureAddress) { // a request packet to server
+      return makeRequestCommand(data, dataLength, sourceAddress, destinationAddress);
+    }
+  } else if (expectedCmdType == MC_RESPONSE) {
+    if (ipHeader->ip_src.s_addr == captureAddress) { // a response packet from server
+      return makeResponseCommand(data, dataLength, sourceAddress, destinationAddress);
+    }
+  }
+  return MemcacheCommand();
 }
+
 
 // protected default constructor
 MemcacheCommand::MemcacheCommand()
   : cmdType_(MC_UNKNOWN),
     sourceAddress_(),
+    destinationAddress_(),
     commandName_(),
     objectKey_(),
     objectSize_(0)
@@ -93,44 +100,77 @@ MemcacheCommand::MemcacheCommand()
 // protected constructor
 MemcacheCommand::MemcacheCommand(const memcache_command_t cmdType,
                                  const string sourceAddress,
+                                 const string destinationAddress,
                                  const string commandName,
                                  const string objectKey,
                                  uint32_t objectSize)
     : cmdType_(cmdType),
       sourceAddress_(sourceAddress),
+      destinationAddress_(destinationAddress),
       commandName_(commandName),
       objectKey_(objectKey),
       objectSize_(objectSize)
 {}
 
 // static protected
-MemcacheCommand MemcacheCommand::makeRequest(u_char*, int, string)
+MemcacheCommand MemcacheCommand::makeRequestCommand(u_char* data,
+                                                    int length,
+                                                    string sourceAddress,
+                                                    string destinationAddress)
 {
-  // don't care about requests right now
+  // set <key> <flags> <exptime> <bytes> [noreply]\r\n
+  static string commandName = "set";
+  static pcrecpp::RE re(commandName + string(" (\\S+) \\d+ \\d+ (\\d+)"),
+                        pcrecpp::RE_Options(PCRE_MULTILINE));
+  string key;
+  int size = -1;
+
+  if (length < 11) { // set k 0 0 1
+    return MemcacheCommand();
+  }
+  for (int i = 0; i < length; i++) {
+    int cid = (int)data[i];
+    if (!(isprint(cid) || cid == 10 || cid == 13)) {
+      return MemcacheCommand();
+    }
+  }
+
+  string input = string((char*)data, length);
+  re.PartialMatch(input, &key, &size);
+  if (size >= 0) {
+    return MemcacheCommand(MC_REQUEST, sourceAddress, destinationAddress, commandName, key, size);
+  }
   return MemcacheCommand();
 }
 
 // static protected
-MemcacheCommand MemcacheCommand::makeResponse(u_char *data, int length,
-                                              string sourceAddress)
+MemcacheCommand MemcacheCommand::makeResponseCommand(u_char *data,
+                                                     int length,
+                                                     string sourceAddress,
+                                                     string destinationAddress)
 {
+  // VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+  static string commandName = "get";
   static pcrecpp::RE re("VALUE (\\S+) \\d+ (\\d+)",
                         pcrecpp::RE_Options(PCRE_MULTILINE));
   string key;
   int size = -1;
-  string input = "";
-  for (int i = 0; i < length; i++) {
-    int cid = (int)data[i];
-    if (isprint(cid) || cid == 10 || cid == 13) {
-      input += (char)data[i];
-    }
-  }
-  if (input.length() < 11) {
+
+
+  if (length < 11) { // VALUE k 0 1
     return MemcacheCommand();
   }
+  for (int i = 0; i < length; i++) {
+    int cid = (int)data[i];
+    if (!(isprint(cid) || cid == 10 || cid == 13)) {
+      return MemcacheCommand();
+    }
+  }
+
+  string input = string((char*)data, length);
   re.PartialMatch(input, &key, &size);
   if (size >= 0) {
-    return MemcacheCommand(MC_RESPONSE, sourceAddress, "", key, size);
+    return MemcacheCommand(MC_RESPONSE, sourceAddress, destinationAddress, commandName, key, size);
   } else {
     return MemcacheCommand();
   }

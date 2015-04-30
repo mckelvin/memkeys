@@ -19,7 +19,8 @@ class MemcacheCommand
 {
  public:
   static MemcacheCommand create(const Packet& pkt,
-                                const bpf_u_int32 captureAddress);
+                                const bpf_u_int32 captureAddress,
+                                const memcache_command_t expectedCmdType);
 
   bool isCommand() const
     { return (isRequest() || isResponse()); }
@@ -40,7 +41,11 @@ class MemcacheCommand
   // source address for request
   std::string getSourceAddress() const { return sourceAddress_; }
 
+  // destination address for response
+  std::string getDestinationAddress() const { return destinationAddress_; }
+
  protected:
+
   // no assignment operator
   MemcacheCommand& operator=(const MemcacheCommand& mc) = delete;
 
@@ -49,22 +54,26 @@ class MemcacheCommand
 
   MemcacheCommand(const memcache_command_t cmdType,
                   const std::string sourceAddress,
+                  const std::string destinationAddress,
                   const std::string commandName,
                   const std::string objectKey,
                   uint32_t objectSize);
 
-  static MemcacheCommand makeRequest(u_char *data,
-                                     int dataLength,
-                                     std::string sourceAddress);
-  static MemcacheCommand makeResponse(u_char *data,
-                                      int dataLength,
-                                      std::string sourceAddress);
+  static MemcacheCommand makeRequestCommand(u_char *data,
+                                            int dataLength,
+                                            std::string sourceAddress,
+                                            std::string destinationAddress);
+  static MemcacheCommand makeResponseCommand(u_char *data,
+                                             int dataLength,
+                                             std::string sourceAddress,
+                                             std::string destinationAddress);
 
-  const memcache_command_t cmdType_;
-  const std::string sourceAddress_;
-  const std::string commandName_;
-  const std::string objectKey_;
-  const uint32_t objectSize_;
+  memcache_command_t cmdType_;
+  std::string sourceAddress_;
+  std::string destinationAddress_;
+  std::string commandName_;
+  std::string objectKey_;
+  uint32_t objectSize_;
 };
 
 } // end namespace

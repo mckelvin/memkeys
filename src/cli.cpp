@@ -21,9 +21,10 @@ static const struct option longopts[] = {
   {"verbose", no_argument, 0, 'v'},
   {"version", no_argument, 0, 'V'},
   {"logfile", required_argument, 0, 'l'},
-  {"report", required_argument, 0, 'R'}
+  {"report", required_argument, 0, 'R'},
+  {"capture", required_argument, 0, 'C'}
 };
-static const char * argp = "d:i:l:p:r:R:hvV";
+static const char * argp = "d:i:l:p:r:R:C:hvV";
 
 using std::cout;            using std::endl;
 using std::string;          using std::ostringstream;
@@ -50,6 +51,10 @@ string Cli::help(const char * progname) {
           longopts[8],
           "Output data in REPORT format (CSV or curses, default curses)",
           "REPORT");
+  txt << mkHelpDoc(
+          longopts[9],
+          "Capture memcached command type (set or get, default get)",
+          "CAPTRUE_TYPE");
   txt << endl;
   txt << mkHelpDoc(longopts[4], "This help", "");
   txt << mkHelpDoc(longopts[5],
@@ -87,6 +92,9 @@ void Cli::parse(int argc, char ** argv, Config * cfg) {
         break;
       case 'R':
         cfg->setReportType(optarg);
+        break;
+      case 'C':
+        cfg->setCaptureType(optarg);
         break;
       case 'h':
         cout << Cli::help(progname);

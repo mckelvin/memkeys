@@ -4,6 +4,7 @@
 #include <string>
 #include "logging/logger.h"
 #include "report/report_type.h"
+#include "net/capture_type.h"
 
 namespace mckeys {
 
@@ -35,6 +36,9 @@ class Config
   void setReportType(const std::string &value);
   ReportType getReportType() const;
 
+  void setCaptureType(const std::string &type);
+  CaptureType getCaptureType() const;
+
   int getSnapLength() const
   { return _snapLength; }
 
@@ -61,6 +65,7 @@ class Config
   LoggerPtr logger;
   std::string logfile;
   ReportType reportType;
+  CaptureType captureType;
 };
 
 } // end namespace

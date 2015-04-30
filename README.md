@@ -18,6 +18,7 @@ Build Status: [![Build Status](https://travis-ci.org/bmatheny/memkeys.png?branch
         -r, --refresh=INTERVAL      Refresh the stats display every INTERVAL ms (default 500)
         -l, --logfile=FILE          Output logs to FILE
         -R, --report=REPORT         Output data in REPORT format (CSV or curses, default curses)
+        -C, --capture=CAPTRUE_TYPE  Capture memcached command type (set or get, default get)
 
         -h, --help                  This help
         -v, --verbose               Increase verbosity. May be used multiple times.
