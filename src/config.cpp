@@ -103,8 +103,20 @@ uint16_t Config::getRefreshInterval() const
 void Config::setReportType(const std::string &value) {
   reportType = ReportType::fromString(value);
 }
+
 ReportType Config::getReportType() const {
   return reportType;
+}
+
+/**
+ * get or set
+ */
+void Config::setCaptureType(const std::string &type) {
+    captureType = CaptureType::fromString(type);
+}
+
+CaptureType Config::getCaptureType() const {
+  return captureType;
 }
 
 /**
@@ -150,6 +162,9 @@ string Config::toString() const
   configs << ": " << getPort() << endl;
   configs << setw(20) << "Refresh Interval";
   configs << ": " << getRefreshInterval() << "ms" << endl;
+
+  configs << setw(20) << "Capture Type";
+  configs << ": " << getCaptureType().getName() << endl;
   configs << setw(20) << "Verbosity";
   configs << ": " << verbosity().getName() << endl;
   configs << setw(20) << "Logfile";
@@ -168,7 +183,8 @@ Config::Config()
     _snapLength(1518),
     logger(Logger::getLogger("config")),
     logfile(),
-    reportType(ReportType::NCURSES)
+    reportType(ReportType::NCURSES),
+    captureType(CaptureType::GET)
 {}
 
 void Config::adjustLoggerLevel(const Level &newLevel)

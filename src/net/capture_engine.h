@@ -40,7 +40,7 @@ class CaptureEngine {
   void processPackets(int worker_id, mqueue<Packet>* work_queue);
 
   // called by processPackets to parse an enqueued packet
-  MemcacheCommand parse(const Packet& mc) const;
+  MemcacheCommand parse(const Packet& mc, const memcache_command_t memcache_command) const;
   // called by processPackets if appropriate
   void enqueue(const MemcacheCommand& mc);
 

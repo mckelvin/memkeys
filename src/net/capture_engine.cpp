@@ -98,6 +98,13 @@ void CaptureEngine::processPackets(int worker_id, mqueue<Packet>* work_queue) {
   backoff.setMaxIntervalMillis(10);
   uint64_t backoffMs = 0;
   struct timespec waitTime;
+  CaptureType capture_type = config->getCaptureType();
+  memcache_command_t capture_command = MC_UNKNOWN;
+  if (capture_type == CaptureType::SET) {
+      capture_command = MC_REQUEST;
+  } else if (capture_type == CaptureType::GET) {
+      capture_command = MC_RESPONSE;
+  }
 
   logger->info(CONTEXT, "Worker %d starting capture processing", worker_id);
 
@@ -113,8 +120,8 @@ void CaptureEngine::processPackets(int worker_id, mqueue<Packet>* work_queue) {
       logger->trace(CONTEXT,
                     "worker %d Consumed packet %ld", worker_id, packet.id());
 #endif
-      MemcacheCommand mc = parse(packet);
-      if (mc.isResponse()) {
+      MemcacheCommand mc = parse(packet, capture_command);
+      if (mc.isCommand()) {
         enqueue(mc);
         resCount += 1;
 #ifdef _DEBUG
@@ -124,7 +131,7 @@ void CaptureEngine::processPackets(int worker_id, mqueue<Packet>* work_queue) {
 #endif
       } else {
 #ifdef _DEVEL
-        logger->trace(CONTEXT, "worker %d not a memcache response", worker_id);
+        logger->trace(CONTEXT, "worker %d not a memcache request/response", worker_id);
 #endif
       }
       if ((pktCount % 10000) == 0 && isDebug) {
@@ -159,10 +166,10 @@ void CaptureEngine::processPackets(int worker_id, mqueue<Packet>* work_queue) {
  * @return MemcacheCommand the command representation of the packet
  * @protected
  */
-MemcacheCommand CaptureEngine::parse(const Packet& packet) const
+MemcacheCommand CaptureEngine::parse(const Packet& packet, const memcache_command_t memcache_command) const
 {
   static const auto address = getIpAddress();
-  return MemcacheCommand::create(packet, address);
+  return MemcacheCommand::create(packet, address, memcache_command);
 }
 
 /**
@@ -172,7 +179,7 @@ MemcacheCommand CaptureEngine::parse(const Packet& packet) const
  */
 void CaptureEngine::enqueue(const MemcacheCommand& mc)
 {
-  Elem e(mc.getObjectKey(), mc.getObjectSize());
+  Elem e(mc.getCommandName() + std::string(" ") + mc.getObjectKey(), mc.getObjectSize());
 #ifdef _DEBUG
   logger->trace(CONTEXT,
                "Produced stat: %s, %d", e.first.c_str(), e.second);
