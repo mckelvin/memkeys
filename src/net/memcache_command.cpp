@@ -28,8 +28,7 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
                                         const bpf_u_int32 captureAddress,
                                         const memcache_command_t expectedCmdType)
 {
-  static ssize_t ether_header_sz = sizeof(struct ether_header);
-  static ssize_t ip_sz = sizeof(struct ip);
+  static ssize_t ethernetHeaderSize = sizeof(struct ether_header);
 
   const struct ether_header* ethernetHeader;
   const struct ip* ipHeader;
@@ -54,7 +53,8 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
   }
 
   // must be TCP - TODO add support for UDP
-  ipHeader = (struct ip*)(packet + ether_header_sz);
+  ipHeader = (struct ip*)(packet + ethernetHeaderSize);
+  ssize_t ipHeaderSize = ipHeader->ip_hl * 4;
   auto itype = ipHeader->ip_p;
   if (itype != IPPROTO_TCP) {
     return MemcacheCommand();
@@ -62,9 +62,9 @@ MemcacheCommand MemcacheCommand::create(const Packet& pkt,
   sourceAddress = ipv4addressToString(&(ipHeader->ip_src));
   destinationAddress = ipv4addressToString(&(ipHeader->ip_dst));
 
-
-  tcpHeader = (struct tcphdr*)(packet + ether_header_sz + ip_sz);
-  dataOffset = ether_header_sz + ip_sz + (tcpHeader->doff * 4);
+  tcpHeader = (struct tcphdr*)(packet + ethernetHeaderSize + ipHeaderSize);
+  ssize_t tcpHeaderSize = tcpHeader->doff * 4;
+  dataOffset = ethernetHeaderSize + ipHeaderSize + tcpHeaderSize;
   data = (u_char*)(packet + dataOffset);
   dataLength = pkthdr->len - dataOffset;
   if (dataLength > pkthdr->caplen) {
