@@ -37,8 +37,10 @@ Device Device::getDevice(const string &name)
       for (pcap_addr_t *a = d->addresses; a != NULL; a = a->next) {
         if (a->addr->sa_family == AF_INET) {
           address = ((struct sockaddr_in*)(a->addr))->sin_addr.s_addr;
+          break;
         }
       }
+      break;
     }
   }
   pcap_freealldevs(alldevs);
