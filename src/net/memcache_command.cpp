@@ -124,18 +124,18 @@ MemcacheCommand MemcacheCommand::makeRequestCommand(u_char* data,
                         pcrecpp::RE_Options(PCRE_MULTILINE));
   string key;
   int size = -1;
+  string input = "";
 
-  if (length < 11) { // set k 0 0 1
-    return MemcacheCommand();
-  }
   for (int i = 0; i < length; i++) {
     int cid = (int)data[i];
-    if (!(isprint(cid) || cid == 10 || cid == 13)) {
-      return MemcacheCommand();
+    if (isprint(cid) || cid == 10 || cid == 13) {
+      input += static_cast<char>(cid);
     }
   }
+  if (input.length() < 11) { // set k 0 0 1
+    return MemcacheCommand();
+  }
 
-  string input = string((char*)data, length);
   re.PartialMatch(input, &key, &size);
   if (size >= 0) {
     return MemcacheCommand(MC_REQUEST, sourceAddress, destinationAddress, commandName, key, size);
@@ -155,19 +155,18 @@ MemcacheCommand MemcacheCommand::makeResponseCommand(u_char *data,
                         pcrecpp::RE_Options(PCRE_MULTILINE));
   string key;
   int size = -1;
+  string input = "";
 
-
-  if (length < 11) { // VALUE k 0 1
-    return MemcacheCommand();
-  }
   for (int i = 0; i < length; i++) {
     int cid = (int)data[i];
-    if (!(isprint(cid) || cid == 10 || cid == 13)) {
-      return MemcacheCommand();
+    if (isprint(cid) || cid == 10 || cid == 13) {
+      input += static_cast<char>(cid);
     }
   }
+  if (input.length() < 11) { // VALUE k 0 1
+    return MemcacheCommand();
+  }
 
-  string input = string((char*)data, length);
   re.PartialMatch(input, &key, &size);
   if (size >= 0) {
     return MemcacheCommand(MC_RESPONSE, sourceAddress, destinationAddress, commandName, key, size);

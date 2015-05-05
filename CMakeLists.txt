@@ -12,11 +12,16 @@ if(GCC_VERSION VERSION_LESS 4.5)
     message(FATAL_ERROR "GCC version >= 4.5 required")
 endif()
 
-set(WARN_FLAGS "-Wall -Wextra -Wno-unused-parameter")
-set(CMAKE_C_FLAGS "-pthread ${WARN_FLAGS} ${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "-std=c++0x -pthread ${WARN_FLAGS} ${CMAKE_CXX_FLAGS}")
-set(CMAKE_C_FLAGS_DEBUG "-DDEBUG ${CMAKE_C_FLAGS_DEBUG}")
-set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG ${CMAKE_CXX_FLAGS_DEBUG}")
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: None Debug Release." FORCE)
+endif (NOT CMAKE_BUILD_TYPE)
+
+set(COMMON_FLAGS "-Wall -Wextra -Wno-unused-parameter -pedantic -pthread")
+
+set(CMAKE_CXX_FLAGS_DEBUG "-std=c++0x -g3 -O0 ${COMMON_FLAGS}" CACHE STRING "CXX DEBUG FLAGS" FORCE)
+set(CMAKE_C_FLAGS_DEBUG "-g3 -O0 ${COMMON_FLAGS}" CACHE STRING "C DEBUG FLAGS" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-std=c++0x -DNDEBUG -O2 ${COMMON_FLAGS}" CACHE STRING "CXX RELEASE FLAGS" FORCE)
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O2 ${COMMON_FLAGS}" CACHE STRING "C RELEASE FLAGS" FORCE)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake-modules")
 
@@ -25,6 +30,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 try_compile(
     HAVE_ATOMIC
     ${memkeys_BINARY_DIR} ${CMAKE_MODULE_PATH}/check_atomic.cpp
+    COMPILE_DEFINITIONS -std=c++0x
     OUTPUT_VARIABLE OUTPUT
 )
 
